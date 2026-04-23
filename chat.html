@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خدمة العملاء - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="header-placeholder"></div>
+
+<div class="ts-page" style="max-width:900px;">
+  <div class="ts-breadcrumb"><a href="index.html">الرئيسية</a> › <span>خدمة العملاء</span></div>
+  <div class="ts-page-title">💬 خدمة العملاء</div>
+
+  <!-- Mode Selection -->
+  <div id="modeSelect">
+    <div class="ts-chat-tabs">
+      <button class="ts-chat-tab-btn active" onclick="startChat('ai')" id="aiTabBtn">
+        <span class="tab-icon">🤖</span>
+        شات ذكي (AI)
+        <small>رد فوري على استفساراتك</small>
+      </button>
+      <button class="ts-chat-tab-btn" onclick="startChat('human')" id="humanTabBtn">
+        <span class="tab-icon">🎧</span>
+        تحدث مع موظف
+        <small>تواصل مع فريق الدعم</small>
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Interface -->
+  <div id="chatInterface" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;">
+      <div id="chatAgentAvatar" style="width:38px;height:38px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;" id="chatAgentName">TECH AI</div>
+        <div style="font-size:12px;color:var(--green);">● متصل الآن</div>
+      </div>
+      <button class="ts-btn ts-btn-outline ts-btn-sm" onclick="resetChat()" style="margin-right:auto;">← رجوع</button>
+    </div>
+
+    <div class="ts-chat-messages" id="chatMessages" style="max-height:450px;min-height:300px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;overflow-y:auto;"></div>
+
+    <div class="ts-chat-input-wrap">
+      <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;" title="مرفق">📎</button>
+      <input type="text" class="ts-chat-input" id="chatInput" placeholder="اكتب رسالتك هنا..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+      <button class="ts-chat-send" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+let chatMode = 'ai';
+let chatHistory = [];
+let isTyping = false;
+let sessionId = 'session_' + Date.now();
+let userName = 'زائر';
+
+// Save message to localStorage for admin to see
+function saveMsg(from, text) {
+  if (from === 'bot') return; // only save user msgs + admin replies
+  const allMsgs = JSON.parse(localStorage.getItem('ts_chat_msgs') || '[]');
+  const user = DB.getUser();
+  if (user) userName = user.name;
+  allMsgs.push({ sessionId, from: 'user', text, time: Date.now(), read: false, userName });
+  localStorage.setItem('ts_chat_msgs', JSON.stringify(allMsgs));
+}
+
+// Poll for admin replies
+function pollAdminReplies() {
+  if (chatMode !== 'human') return;
+  const replies = JSON.parse(localStorage.getItem('ts_admin_replies') || '{}');
+  const myReplies = replies[sessionId] || [];
+  const shown = parseInt(localStorage.getItem('ts_shown_' + sessionId) || '0');
+  if (myReplies.length > shown) {
+    for (let i = shown; i < myReplies.length; i++) {
+      addMsg('bot', myReplies[i].text, 'موظف الدعم');
+    }
+    localStorage.setItem('ts_shown_' + sessionId, myReplies.length);
+  }
+}
+setInterval(pollAdminReplies, 3000);
+
+function getSystemPrompt() {
+  const products = DB.getProducts().map(p => ({name: p.name, price: p.price, category: p.category, rating: p.rating, stock: p.stock}));
+  return `أنت مساعد خدمة عملاء ذكي لمتجر TECHSTORE، أكبر متجر للإلكترونيات في مصر.
+
+معلومات المتجر:
+- نبيع: هواتف، لابتوبات، سماعات، شاشات، أجهزة لوحية، إكسسوارات
+- الضمان: سنة كاملة على جميع المنتجات ضد عيوب التصنيع
+- التوصيل: 24-48 ساعة، مجاني للطلبات فوق 500 جنيه
+- الإرجاع: 14 يوم بدون أي أسئلة
+- الدفع: عند الاستلام، بطاقة ائتمانية، محافظ رقمية
+- الدعم: متاح 24/7
+
+المنتجات المتاحة حالياً: ${JSON.stringify(products)}
+
+تعليمات:
+- رد دائماً بالعربية بشكل ودي ومهني
+- أجب على أسئلة المنتجات والطلبات والشحن والضمان
+- إذا سأل عن منتج معين أعطه السعر والتفاصيل
+- اذكر الأسعار بالجنيه المصري
+- كن مختصراً ومفيداً
+- إذا طلب المستخدم التحدث مع موظف حقيقي أخبره أنك ستحوله
+- لا تتحدث عن مواضيع خارج نطاق المتجر`;
+}
+
+function startChat(mode) {
+  chatMode = mode;
+  document.getElementById('modeSelect').style.display = 'none';
+  document.getElementById('chatInterface').style.display = 'block';
+
+  if (mode === 'ai') {
+    document.getElementById('chatAgentAvatar').textContent = '🤖';
+    document.getElementById('chatAgentName').textContent = 'TECH AI';
+    chatHistory = [];
+    addMsg('bot', 'مرحباً بك في TECHSTORE! 👋 أنا المساعد الذكي، كيف يمكنني مساعدتك؟');
+  } else {
+    sessionId = 'session_' + Date.now();
+    document.getElementById('chatAgentAvatar').innerHTML = '<img src="https://randomuser.me/api/portraits/men/32.jpg" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+    document.getElementById('chatAgentName').textContent = 'موظف الدعم';
+    addMsg('bot', 'مرحباً بك في TECHSTORE! 😊 اكتب رسالتك وسيرد عليك موظف الدعم قريباً.', 'موظف الدعم');
+  }
+}
+
+function resetChat() {
+  document.getElementById('modeSelect').style.display = 'block';
+  document.getElementById('chatInterface').style.display = 'none';
+  document.getElementById('chatMessages').innerHTML = '';
+  chatHistory = [];
+}
+
+function addMsg(type, text, name = null) {
+  const messages = document.getElementById('chatMessages');
+  const time = new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'});
+  const isUser = type === 'user';
+
+  const div = document.createElement('div');
+  div.className = `ts-msg ${isUser ? 'user' : 'bot'}`;
+  div.innerHTML = `
+    ${!isUser ? `<div class="ts-msg-avatar">${chatMode==='ai' ? '🤖' : '<img src="https://randomuser.me/api/portraits/men/32.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'}</div>` : ''}
+    <div>
+      ${!isUser && name ? `<div style="font-size:11px;color:var(--blue3);font-weight:700;margin-bottom:4px;">${name}${chatMode==='ai' ? ' <span style=\'background:var(--blue);color:white;font-size:9px;padding:1px 6px;border-radius:4px;\'>AI</span>' : ''}</div>` : ''}
+      <div class="ts-msg-bubble">${text.replace(/\n/g, '<br>')}</div>
+      <div class="ts-msg-time">${time}</div>
+    </div>
+    ${isUser ? '<div class="ts-msg-avatar" style="background:var(--purple);">👤</div>' : ''}
+  `;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showTyping() {
+  const messages = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'ts-msg bot';
+  div.id = 'typingIndicator';
+  div.innerHTML = `
+    <div class="ts-msg-avatar">${chatMode==='ai' ? '🤖' : '<img src="https://randomuser.me/api/portraits/men/32.jpg" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'}</div>
+    <div class="ts-msg-bubble"><div class="ts-typing"><span></span><span></span><span></span></div></div>
+  `;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function removeTyping() {
+  document.getElementById('typingIndicator')?.remove();
+}
+
+// AI via built-in Claude
+
+function getSmartReply(text) {
+  const products = DB.getProducts();
+  const t = text.toLowerCase();
+
+  // Search for specific product
+  for (const p of products) {
+    if (t.includes(p.name.toLowerCase()) || p.name.split(' ').some(w => w.length > 3 && t.includes(w.toLowerCase()))) {
+      return `${p.name} 📱\n\nالسعر: ${formatPrice(p.price)}${p.oldPrice ? ' (كان ' + formatPrice(p.oldPrice) + ')' : ''}\nالتقييم: ${'★'.repeat(Math.round(p.rating))} (${p.rating})\nالمخزون: ${p.stock > 0 ? 'متوفر ✅' : 'غير متوفر ❌'}\n\n${p.description}\n\nهل تريد إضافته للسلة؟`;
+    }
+  }
+
+  // Warranty
+  if (t.includes('ضمان') || t.includes('guarantee') || t.includes('كفالة')) {
+    return 'نعم! جميع منتجاتنا أصلية 100% وتأتي مع ضمان سنة كاملة ضد عيوب التصنيع. 🛡️\nفي حال وجود أي عيب، نستبدل المنتج مجاناً.';
+  }
+
+  // Delivery
+  if (t.includes('توصيل') || t.includes('شحن') || t.includes('delivery') || t.includes('وصول')) {
+    return 'التوصيل يتم خلال 24 إلى 48 ساعة. 🚚\nالشحن مجاني للطلبات فوق 500 جنيه، وتكلفته 60 جنيه للطلبات الأقل.';
+  }
+
+  // Return policy
+  if (t.includes('إرجاع') || t.includes('استرجاع') || t.includes('رجوع') || t.includes('استبدال')) {
+    return 'سياسة الإرجاع لدينا سهلة جداً! 🔄\nيمكنك إرجاع أي منتج خلال 14 يوم من تاريخ الاستلام بدون أي أسئلة أو شروط.';
+  }
+
+  // Payment
+  if (t.includes('دفع') || t.includes('فلوس') || t.includes('payment') || t.includes('بطاقة') || t.includes('فيزا')) {
+    return 'طرق الدفع المتاحة: 💳\n• الدفع عند الاستلام (كاش)\n• بطاقة فيزا/ماستركارد/ميزة\n• Vodafone Cash\n• Orange Cash\n• InstaPay';
+  }
+
+  // Price / offers
+  if (t.includes('سعر') || t.includes('اسعار') || t.includes('عرض') || t.includes('خصم') || t.includes('تخفيض')) {
+    const discounted = products.filter(p => p.discount > 0);
+    if (discounted.length > 0) {
+      return 'العروض الحالية: 🔥\n' + discounted.map(p => `• ${p.name}: ${formatPrice(p.price)} (خصم ${p.discount}%)`).join('\n');
+    }
+    return 'أسعارنا تنافسية جداً وتشمل ضماناً كاملاً. تصفح صفحة المنتجات لرؤية جميع الأسعار! 💰';
+  }
+
+  // Products list
+  if (t.includes('منتج') || t.includes('عندكم') || t.includes('بتبيعوا') || t.includes('موجود')) {
+    const cats = [...new Set(products.map(p => p.category))];
+    return 'الأقسام المتوفرة لدينا: 📦\n' + cats.map(c => {
+      const icons = {phones:'📱',laptops:'💻',headphones:'🎧',screens:'🖥️',tablets:'📟',accessories:'🎮',watches:'⌚'};
+      return `${icons[c]||'•'} ${c}`;
+    }).join('\n') + '\n\nاذكر اسم المنتج اللي عايزه وهقولك كل التفاصيل!';
+  }
+
+  // Greeting
+  if (t.includes('مرحبا') || t.includes('اهلا') || t.includes('السلام') || t.includes('هاي') || t.includes('hello')) {
+    return 'أهلاً وسهلاً! 👋 أنا المساعد الذكي لـ TECHSTORE.\nيمكنني مساعدتك في:\n• الاستفسار عن أي منتج\n• معرفة أسعار ومواصفات\n• سياسة الضمان والإرجاع\n• معلومات التوصيل والدفع\n\nاسألني عن أي حاجة! 😊';
+  }
+
+  // Order status
+  if (t.includes('طلب') || t.includes('اوردر') || t.includes('order')) {
+    const user = DB.getUser();
+    if (user) {
+      const orders = DB.getOrders(user.id);
+      if (orders.length > 0) {
+        const last = orders[orders.length - 1];
+        const [label] = statusLabel(last.status);
+        return `آخر طلب ليك رقم #${String(last.id).slice(-6)}\nالحالة: ${label}\nالإجمالي: ${formatPrice(last.total)}\n\nلمزيد من التفاصيل، اذهب لصفحة حسابي 👤`;
+      }
+    }
+    return 'لمتابعة طلباتك، ادخل على صفحة "حسابي" من القائمة العلوية. 📦\nأو سجل دخولك أولاً إذا لم تكن مسجلاً.';
+  }
+
+  // Default responses
+  const defaults = [
+    'شكراً على تواصلك! 😊 يمكنني مساعدتك في الاستفسار عن منتجاتنا، الأسعار، الضمان، التوصيل، والدفع. اسألني عن أي حاجة!',
+    'أهلاً! 👋 اسألني عن أي منتج أو خدمة وسأجاوبك فوراً. يمكنك كتابة اسم المنتج اللي عايز تعرف عنه.',
+    'يسعدني مساعدتك! 🌟 هل لديك سؤال عن منتج معين أو تريد معرفة عروضنا الحالية؟',
+  ];
+  return defaults[Math.floor(Math.random() * defaults.length)];
+}
+
+async function sendMsg() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isTyping) return;
+
+  input.value = '';
+  addMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  saveMsg('user', text);
+
+  isTyping = true;
+  showTyping();
+
+  if (chatMode === 'ai') {
+    try {
+      // Check if user wants human agent
+      if (text.includes('موظف') || text.includes('شخص') || text.includes('بشري') || text.includes('إنسان')) {
+        await new Promise(r => setTimeout(r, 1500));
+        removeTyping();
+        addMsg('bot', 'حسناً، جاري تحويلك إلى أحد موظفي الدعم... 🔄', 'TECH AI');
+        await new Promise(r => setTimeout(r, 2000));
+        resetChat();
+        startChat('human');
+        isTyping = false;
+        return;
+      }
+
+      // Use smart fallback AI based on keywords
+      await new Promise(r => setTimeout(r, 1200));
+      removeTyping();
+      const reply = getSmartReply(text);
+      chatHistory.push({ role: 'assistant', content: reply });
+      addMsg('bot', reply, 'TECH AI');
+    } catch (err) {
+      removeTyping();
+      // Fallback responses
+      const fallbacks = {
+        'ضمان': 'نعم، جميع منتجاتنا أصلية 100% وتأتي مع ضمان سنة كاملة ضد عيوب التصنيع.',
+        'توصيل': 'التوصيل يتم خلال 24-48 ساعة، وهو مجاني للطلبات التي تتجاوز 500 جنيه.',
+        'إرجاع': 'يمكنك إرجاع المنتج خلال 14 يوم من تاريخ الاستلام بدون أي أسئلة.',
+        'سعر': 'أسعارنا تنافسية وتشمل ضماناً كاملاً. تصفح صفحة المنتجات لرؤية جميع الأسعار.',
+        'دفع': 'نقبل الدفع عند الاستلام، والبطاقات الائتمانية، والمحافظ الرقمية (Vodafone Cash, Orange Cash).',
+      };
+      let reply = 'أهلاً! أنا هنا لمساعدتك. هل لديك سؤال عن منتجاتنا أو طلباتك؟';
+      for (const [key, val] of Object.entries(fallbacks)) {
+        if (text.includes(key)) { reply = val; break; }
+      }
+      addMsg('bot', reply, 'TECH AI');
+    }
+  } else {
+    // Human agent - save message and wait for admin reply
+    await new Promise(r => setTimeout(r, 800));
+    removeTyping();
+    addMsg('bot', 'تم استلام رسالتك ✅ سيرد عليك موظف الدعم في أقرب وقت ممكن.', 'موظف الدعم');
+  }
+
+  isTyping = false;
+}
+
+window.startChat = startChat;
+window.resetChat = resetChat;
+window.sendMsg = sendMsg;
+
+document.addEventListener('DOMContentLoaded', async () => { await initPage(); });
+</script>
+</body>
+</html>
