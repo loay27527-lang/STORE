@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تم الطلب - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="header-placeholder"></div>
+
+<div class="ts-page">
+  <div class="ts-success-page">
+    <div class="ts-success-icon">✅</div>
+    <h1 style="font-size:28px;font-weight:900;margin-bottom:12px;">تم استلام طلبك!</h1>
+    <p style="color:var(--text3);font-size:15px;margin-bottom:8px;">شكراً على ثقتك في TECHSTORE</p>
+    <div id="orderInfo" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin:20px 0;text-align:right;">
+    </div>
+    <p style="color:var(--text3);font-size:13px;margin-bottom:24px;">سيتم التواصل معك خلال 24 ساعة لتأكيد الطلب</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="account.html" class="ts-btn ts-btn-outline">📦 متابعة طلباتي</a>
+      <a href="index.html" class="ts-btn ts-btn-primary">🛍️ مواصلة التسوق</a>
+    </div>
+  </div>
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  await initPage();
+  const orderId = localStorage.getItem('ts_lastOrder');
+  if (orderId) {
+    const orders = DB.get('ts_orders') || [];
+    const order = orders.find(o => o.id == orderId);
+    if (order) {
+      document.getElementById('orderInfo').innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:var(--text3);">رقم الطلب</span>
+          <span style="font-weight:700;">#${String(order.id).slice(-6)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:var(--text3);">إجمالي الطلب</span>
+          <span style="font-weight:800;color:var(--blue3);">${formatPrice(order.total)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--text3);">طريقة الدفع</span>
+          <span>${order.paymentMethod === 'cod' ? '💵 عند الاستلام' : order.paymentMethod === 'card' ? '💳 بطاقة' : '📱 محفظة رقمية'}</span>
+        </div>
+      `;
+    }
+  }
+});
+</script>
+</body>
+</html>

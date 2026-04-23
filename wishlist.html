@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المفضلة - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="header-placeholder"></div>
+<div class="ts-page">
+  <div class="ts-breadcrumb"><a href="index.html">الرئيسية</a> › <span>المفضلة</span></div>
+  <div class="ts-page-title">❤️ المفضلة</div>
+  <div class="ts-grid" id="wishGrid"></div>
+  <div id="emptyWish" style="display:none">
+    <div class="ts-empty"><div class="empty-icon">🤍</div><h3>المفضلة فارغة</h3><p>أضف منتجات تعجبك عن طريق أيقونة القلب</p><a href="products.html" class="ts-btn ts-btn-primary">تصفح المنتجات</a></div>
+  </div>
+</div>
+<div id="footer-placeholder"></div>
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+function render() {
+  const products = DB.getWishlist().map(id => DB.getProduct(id)).filter(Boolean);
+  const grid = document.getElementById('wishGrid');
+  const empty = document.getElementById('emptyWish');
+  if (!products.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = products.map(p => `
+  <div class="ts-product-card">
+    <div class="ts-product-img">
+      <a href="product.html?id=${p.id}"><img src="${p.images[0]}" onerror="this.src='https://placehold.co/300x220/0D1B30/60A5FA?text=📦'"></a>
+      ${p.discount ? `<div class="ts-discount-badge">${p.discount}% خصم</div>` : `<div class="ts-new-badge">جديد</div>`}
+      <div class="ts-wish-btn active" onclick="removeWish(${p.id})">❤️</div>
+    </div>
+    <div class="ts-product-body">
+      <a href="product.html?id=${p.id}" style="text-decoration:none;color:inherit"><div class="ts-product-name">${p.name}</div></a>
+      <div class="ts-product-rating"><span class="ts-stars">${renderStars(p.rating)}</span><span class="ts-rating-count">(${p.reviews})</span></div>
+      <div class="ts-product-price"><span class="ts-price">${formatPrice(p.price)}</span>${p.oldPrice ? `<span class="ts-old-price">${formatPrice(p.oldPrice)}</span>` : ''}</div>
+      <button class="ts-btn ts-btn-primary ts-btn-full ts-btn-sm" onclick="DB.addToCart(${p.id});showToast('تمت الإضافة للسلة 🛒');openCart()">🛒 أضف للسلة</button>
+    </div>
+  </div>
+  `).join('');
+}
+function removeWish(id) { DB.toggleWishlist(id); showToast('تمت الإزالة من المفضلة'); render(); }
+window.removeWish = removeWish;
+document.addEventListener('DOMContentLoaded', async () => { await initPage(); render(); });
+</script>
+</body>
+</html>
