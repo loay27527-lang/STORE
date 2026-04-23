@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>حسابي - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="header-placeholder"></div>
+
+<div class="ts-page">
+  <div id="accountContent"></div>
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+let activeTab = 'dashboard';
+
+async function render() {
+  const user = DB.getUser();
+  if (!user) { showAuthModal(); return; }
+
+  const orders = DB.getOrders(user.id);
+  const wishlist = DB.getWishlist();
+
+  const sidebar = `
+  <div class="ts-sidebar-menu">
+    <div style="padding:20px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;">
+          ${user.avatar ? `<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:800;">${user.name}</div>
+          <div style="font-size:12px;color:var(--text3);">عضو منذ ${new Date(user.joinDate).toLocaleDateString('ar-EG', {month:'long',year:'numeric'})}</div>
+        </div>
+      </div>
+    </div>
+    ${[
+      {id:'dashboard', icon:'🏠', label:'لوحة التحكم'},
+      {id:'orders', icon:'📦', label:'طلباتي'},
+      {id:'addresses', icon:'📍', label:'عناويني'},
+      {id:'wishlist', icon:'❤️', label:'المفضلة'},
+      {id:'coupons', icon:'🏷️', label:'كوبونات الخصم'},
+      {id:'payment', icon:'💳', label:'طرق الدفع'},
+      {id:'notifications', icon:'🔔', label:'الإشعارات'},
+      {id:'support', icon:'🎧', label:'الدعم والمساعدة'},
+      {id:'settings', icon:'⚙️', label:'الإعدادات'},
+    ].map(t => `
+      <div class="ts-sidebar-link ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">
+        <span class="sl-icon">${t.icon}</span> ${t.label}
+      </div>
+    `).join('')}
+    <div class="ts-sidebar-link" onclick="DB.logout();location.href='index.html'" style="color:var(--red);">
+      <span class="sl-icon">🚪</span> تسجيل خروج
+    </div>
+  </div>
+  `;
+
+  let mainContent = '';
+
+  if (activeTab === 'dashboard') {
+    const totalSpent = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
+    const pending = orders.filter(o => ['new','preparing','shipped'].includes(o.status)).length;
+    const delivered = orders.filter(o => o.status === 'delivered').length;
+
+    mainContent = `
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:20px;font-weight:900;">مرحباً بك، ${user.name} 👋</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+      ${[
+        {icon:'🛍️', val:orders.length, label:'إجمالي الطلبات', color:'var(--blue3)'},
+        {icon:'🚚', val:pending, label:'قيد التوصيل', color:'var(--gold)'},
+        {icon:'✅', val:delivered, label:'تم التوصيل', color:'var(--green)'},
+        {icon:'💰', val:formatPrice(totalSpent), label:'المبلغ الإجمالي', color:'var(--purple)'},
+      ].map(s => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">${s.icon}</div>
+        <div style="font-size:${s.val.toString().length > 8 ? '13' : '20'}px;font-weight:900;color:${s.color};">${s.val}</div>
+        <div style="font-size:11px;color:var(--text3);">${s.label}</div>
+      </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:16px;font-weight:800;margin-bottom:12px;">آخر الطلبات</h3>
+      ${orders.slice(-4).reverse().map(o => {
+        const [label, color] = statusLabel(o.status);
+        return `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="setTab('orders')">
+          <img src="${o.items[0]?.img || ''}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;" onerror="this.src='https://placehold.co/50x50/0D1B30/60A5FA?text=📦'">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;">#${String(o.id).slice(-6)}</div>
+            <div style="font-size:12px;color:var(--text3);">${o.items.length} منتج${o.items.length > 1 ? 'ات' : ''} | ${new Date(o.date).toLocaleDateString('ar-EG')}</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:var(--blue3);margin-bottom:4px;">${formatPrice(o.total)}</div>
+            <span class="ts-status ts-status-${o.status}">${label}</span>
+          </div>
+        </div>
+        `;
+      }).join('') || '<div style="color:var(--text3);text-align:center;padding:20px;">لا توجد طلبات بعد</div>'}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      ${[
+        {icon:'🛡️', t:'ضمان المنتجات', d:'جميع منتجاتنا أصلية 100%'},
+        {icon:'🚚', t:'شحن سريع', d:'توصيل سريع لجميع الطلبات'},
+        {icon:'🎧', t:'دعم 24/7', d:'فريق دعم متاح على مدار الساعة'},
+        {icon:'🔄', t:'إرجاع سهل', d:'إرجاع واستبدال خلال 14 يوم'},
+      ].map(f => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;">${f.icon}</div>
+        <div style="font-size:12px;font-weight:700;">${f.t}</div>
+        <div style="font-size:11px;color:var(--text3);">${f.d}</div>
+      </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-top:24px;">
+      <div class="ts-section-title">منتجات قد تعجبك <a href="products.html">عرض المزيد</a></div>
+      <div class="ts-grid">
+        ${DB.getProducts().slice(0,4).map(p => `
+        <div class="ts-product-card">
+          <div class="ts-product-img"><a href="product.html?id=${p.id}"><img src="${p.images[0]}" onerror="this.src='https://placehold.co/300x220/0D1B30/60A5FA?text=📦'"></a></div>
+          <div class="ts-product-body">
+            <a href="product.html?id=${p.id}" style="text-decoration:none;color:inherit"><div class="ts-product-name">${p.name}</div></a>
+            <div class="ts-product-price"><span class="ts-price">${formatPrice(p.price)}</span></div>
+            <button class="ts-btn ts-btn-primary ts-btn-full ts-btn-sm" onclick="DB.addToCart(${p.id});showToast('تمت الإضافة 🛒');openCart()">🛒 أضف للسلة</button>
+          </div>
+        </div>
+        `).join('')}
+      </div>
+    </div>
+    `;
+  } else if (activeTab === 'orders') {
+    mainContent = `
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:20px;">📦 طلباتي</h2>
+    ${orders.length === 0 ? `
+    <div class="ts-empty"><div class="empty-icon">📦</div><h3>لا توجد طلبات</h3><p>لم تقم بأي طلبات بعد</p><a href="products.html" class="ts-btn ts-btn-primary">تسوق الآن</a></div>
+    ` : orders.slice().reverse().map(o => {
+      const [label, color] = statusLabel(o.status);
+      return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:16px;font-weight:800;">طلب #${String(o.id).slice(-6)}</div>
+            <div style="font-size:12px;color:var(--text3);">${new Date(o.date).toLocaleDateString('ar-EG', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+          </div>
+          <div style="text-align:left;">
+            <div style="font-size:18px;font-weight:900;color:var(--blue3);">${formatPrice(o.total)}</div>
+            <span class="ts-status ts-status-${o.status}">${label}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+          ${o.items.map(item => `
+          <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);border-radius:8px;padding:8px;min-width:150px;">
+            <img src="${item.img}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;" onerror="this.src='https://placehold.co/40x40/0D1B30/60A5FA?text=📦'">
+            <div>
+              <div style="font-size:11px;font-weight:600;">${item.name}</div>
+              <div style="font-size:11px;color:var(--blue3);">${formatPrice(item.price)} × ${item.qty}</div>
+            </div>
+          </div>
+          `).join('')}
+        </div>
+        ${o.shipping ? `
+        <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3);">
+          📍 ${o.shipping.address}, ${o.shipping.area}, ${o.shipping.city} | 📞 ${o.shipping.phone}
+        </div>
+        ` : ''}
+      </div>
+      `;
+    }).join('')}
+    `;
+  } else if (activeTab === 'wishlist') {
+    const wProducts = DB.getWishlist().map(id => DB.getProduct(id)).filter(Boolean);
+    mainContent = `
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:20px;">❤️ المفضلة</h2>
+    ${wProducts.length === 0 ? `
+    <div class="ts-empty"><div class="empty-icon">🤍</div><h3>المفضلة فارغة</h3><p>أضف منتجات لمتابعتها لاحقاً</p><a href="products.html" class="ts-btn ts-btn-primary">تصفح المنتجات</a></div>
+    ` : `<div class="ts-grid">${wProducts.map(p => `
+    <div class="ts-product-card">
+      <div class="ts-product-img"><a href="product.html?id=${p.id}"><img src="${p.images[0]}" onerror="this.src='https://placehold.co/300x220/0D1B30/60A5FA?text=📦'"></a>
+        <div class="ts-wish-btn active" onclick="DB.toggleWishlist(${p.id});render()">❤️</div>
+      </div>
+      <div class="ts-product-body">
+        <a href="product.html?id=${p.id}" style="text-decoration:none;color:inherit"><div class="ts-product-name">${p.name}</div></a>
+        <div class="ts-product-price"><span class="ts-price">${formatPrice(p.price)}</span></div>
+        <button class="ts-btn ts-btn-primary ts-btn-full ts-btn-sm" onclick="DB.addToCart(${p.id});showToast('تمت الإضافة 🛒');openCart()">🛒 أضف للسلة</button>
+      </div>
+    </div>
+    `).join('')}</div>`}
+    `;
+  } else if (activeTab === 'settings') {
+    mainContent = `
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:20px;">⚙️ إعدادات الحساب</h2>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;overflow:hidden;">
+          ${user.avatar ? `<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}
+        </div>
+        <button class="ts-btn ts-btn-outline ts-btn-sm" onclick="document.getElementById('avatarInput').click()">📷 تغيير الصورة</button>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+      </div>
+      <div class="ts-form-group"><label>الاسم الكامل</label><input type="text" class="ts-input" id="editName" value="${user.name}"></div>
+      <div class="ts-form-group"><label>البريد الإلكتروني</label><input type="email" class="ts-input" id="editEmail" value="${user.email}"></div>
+      <div class="ts-form-group"><label>رقم الهاتف</label><input type="tel" class="ts-input" id="editPhone" value="${user.phone||''}"></div>
+      <div class="ts-form-group"><label>كلمة مرور جديدة (اتركها فارغة إن لم ترد التغيير)</label><input type="password" class="ts-input" id="editPw" placeholder="كلمة مرور جديدة"></div>
+      <button class="ts-btn ts-btn-primary ts-btn-full" onclick="saveSettings()">حفظ التغييرات</button>
+    </div>
+    `;
+  } else {
+    mainContent = `
+    <div class="ts-empty"><div class="empty-icon">🚧</div><h3>${{addresses:'عناويني',coupons:'كوبوناتي',payment:'طرق الدفع',notifications:'الإشعارات',support:'الدعم والمساعدة'}[activeTab] || activeTab}</h3><p>قريباً سيتم إضافة هذه الصفحة</p></div>
+    `;
+  }
+
+  document.getElementById('accountContent').innerHTML = `
+  <div class="ts-profile-layout">
+    ${sidebar}
+    <div>${mainContent}</div>
+  </div>
+  `;
+}
+
+function setTab(tab) { activeTab = tab; render(); window.scrollTo(0,0); }
+
+function uploadAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const user = DB.getUser();
+    user.avatar = e.target.result;
+    await DB.updateUser(user);
+    showToast('تم تحديث الصورة ✅');
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveSettings() {
+  const user = DB.getUser();
+  user.name = document.getElementById('editName').value.trim() || user.name;
+  user.email = document.getElementById('editEmail').value.trim() || user.email;
+  user.phone = document.getElementById('editPhone').value.trim();
+  const pw = document.getElementById('editPw').value;
+  if (pw) user.password = pw;
+  let users = DB.get('ts_users') || [];
+  const idx = users.findIndex(u => u.id === user.id);
+  if (idx >= 0) users[idx] = user;
+  DB.set('ts_users', users);
+  DB.login(user);
+  showToast('تم حفظ التغييرات ✅');
+  render();
+}
+
+window.setTab = setTab;
+window.uploadAvatar = uploadAvatar;
+window.saveSettings = saveSettings;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await initPage();
+  // Wait for DB to be fully ready then re-check user
+  let user = DB.getUser();
+  if (!user) {
+    // Try waiting a bit more for Firebase sync
+    await new Promise(r => setTimeout(r, 400));
+    user = DB.getUser();
+  }
+  if (!user) {
+    showAuthModal();
+    document.getElementById('accountContent').innerHTML = `<div class="ts-empty"><div class="empty-icon">🔐</div><h3>يرجى تسجيل الدخول</h3></div>`;
+    return;
+  }
+  render();
+});
+</script>
+</body>
+</html>

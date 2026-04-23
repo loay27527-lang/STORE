@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المنتجات - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="header-placeholder"></div>
+
+<div class="ts-page">
+  <div class="ts-breadcrumb">
+    <a href="index.html">الرئيسية</a> ›
+    <span id="breadTitle">جميع المنتجات</span>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="font-size:20px;font-weight:800;" id="pageTitle">جميع المنتجات</div>
+    <div style="margin-right:auto;display:flex;gap:8px;flex-wrap:wrap;">
+      <select class="ts-input" id="sortBy" style="width:auto;padding:8px 12px;font-size:13px;" onchange="renderProducts()">
+        <option value="">ترتيب افتراضي</option>
+        <option value="price_asc">السعر: الأقل أولاً</option>
+        <option value="price_desc">السعر: الأعلى أولاً</option>
+        <option value="rating">التقييم</option>
+        <option value="name">الاسم</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Category Tabs -->
+  <div class="ts-cats" id="catTabs" style="margin-bottom:24px;"></div>
+
+  <!-- Products Grid -->
+  <div class="ts-grid" id="productsGrid"></div>
+  <div id="emptyState" style="display:none">
+    <div class="ts-empty"><div class="empty-icon">📦</div><h3>لا توجد منتجات</h3><p>جرب تغيير الفلتر أو البحث</p></div>
+  </div>
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+function getParams() {
+  const p = new URLSearchParams(location.search);
+  return { cat: p.get('cat') || '', search: p.get('search') || '', discount: p.get('discount') || '' };
+}
+
+function renderCatTabs(activeCat) {
+  const cats = DB.get('ts_categories') || [];
+  const container = document.getElementById('catTabs');
+  container.innerHTML = `
+    <a href="products.html" class="ts-cat-btn ${!activeCat?'active':''}">
+      <span class="cat-icon">📦</span> الكل
+    </a>
+    ${cats.map(c => `
+      <a href="products.html?cat=${c.id}" class="ts-cat-btn ${activeCat===c.id?'active':''}">
+        <span class="cat-icon">${c.icon}</span> ${c.name}
+      </a>
+    `).join('')}
+  `;
+}
+
+function renderProducts() {
+  const { cat, search, discount } = getParams();
+  let products = DB.getProducts({ category: cat || undefined, search: search || undefined });
+
+  if (discount) products = products.filter(p => p.discount > 0);
+
+  const sort = document.getElementById('sortBy').value;
+  if (sort === 'price_asc') products.sort((a,b) => a.price - b.price);
+  else if (sort === 'price_desc') products.sort((a,b) => b.price - a.price);
+  else if (sort === 'rating') products.sort((a,b) => b.rating - a.rating);
+  else if (sort === 'name') products.sort((a,b) => a.name.localeCompare(b.name, 'ar'));
+
+  const grid = document.getElementById('productsGrid');
+  const empty = document.getElementById('emptyState');
+
+  if (!products.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = products.map(p => {
+    const wished = DB.isWishlisted(p.id);
+    return `
+    <div class="ts-product-card">
+      <div class="ts-product-img">
+        <a href="product.html?id=${p.id}"><img src="${p.images[0]}" alt="${p.name}" onerror="this.src='https://placehold.co/300x220/0D1B30/60A5FA?text=📦'"></a>
+        ${p.discount ? `<div class="ts-discount-badge">${p.discount}% خصم</div>` : `<div class="ts-new-badge">جديد</div>`}
+        ${p.stock <= 5 && p.stock > 0 ? `<div class="ts-stock-badge">متبقي ${p.stock}</div>` : ''}
+        <div class="ts-wish-btn ${wished?'active':''}" onclick="toggleWish(${p.id}, this)">
+          ${wished ? '❤️' : '🤍'}
+        </div>
+      </div>
+      <div class="ts-product-body">
+        <a href="product.html?id=${p.id}" style="text-decoration:none;color:inherit">
+          <div class="ts-product-name">${p.name}</div>
+        </a>
+        <div class="ts-product-rating">
+          <span class="ts-stars">${renderStars(p.rating)}</span>
+          <span class="ts-rating-count">(${p.reviews})</span>
+        </div>
+        <div class="ts-product-price">
+          <span class="ts-price">${formatPrice(p.price)}</span>
+          ${p.oldPrice ? `<span class="ts-old-price">${formatPrice(p.oldPrice)}</span>` : ''}
+        </div>
+        <button class="ts-btn ts-btn-primary ts-btn-full ts-btn-sm" onclick="quickAdd(${p.id})">
+          🛒 أضف للسلة
+        </button>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function toggleWish(id, el) {
+  const added = DB.toggleWishlist(id);
+  el.innerHTML = added ? '❤️' : '🤍';
+  el.classList.toggle('active', added);
+  showToast(added ? 'تمت الإضافة للمفضلة ❤️' : 'تمت الإزالة من المفضلة');
+}
+
+function quickAdd(id) {
+  DB.addToCart(id);
+  showToast('تمت الإضافة للسلة 🛒');
+  openCart();
+}
+
+window.toggleWish = toggleWish;
+window.quickAdd = quickAdd;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await initPage();
+  const { cat, search } = getParams();
+  renderCatTabs(cat);
+
+  if (search) {
+    document.getElementById('pageTitle').textContent = `نتائج: "${search}"`;
+    document.getElementById('breadTitle').textContent = `البحث: ${search}`;
+    document.getElementById('headerSearch').value = search;
+  } else if (cat) {
+    const cats = DB.get('ts_categories') || [];
+    const found = cats.find(c => c.id === cat);
+    if (found) {
+      document.getElementById('pageTitle').textContent = found.icon + ' ' + found.name;
+      document.getElementById('breadTitle').textContent = found.name;
+    }
+  }
+  renderProducts();
+});
+</script>
+</body>
+</html>
