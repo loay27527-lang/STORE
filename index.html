@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TECHSTORE - متجر التكنولوجيا</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+
+<!-- App Download Bar -->
+<div style="background:linear-gradient(90deg,#1a1a2e,#16213e,#0f3460);padding:10px 20px;text-align:center;border-bottom:1px solid var(--border2);position:relative;z-index:200;">
+  <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
+    <span style="color:var(--text2);font-size:13px;">📲 حمل تطبيق TECHSTORE واستمتع بتجربة تسوق أسرع!</span>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="https://github.com/loay27527-lang/STORE/releases/download/V1.0/_TECH_STORE_19756376.apk" download style="display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.42c1.42.07 2.41.74 3.24.8 1.24-.24 2.43-.93 3.75-.84 1.58.12 2.78.75 3.55 1.9-3.25 1.95-2.48 5.98.66 7.18-.56 1.3-1.13 2.58-3.2 3.82zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+        تحميل Android
+      </a>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);color:var(--text3);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,0.15);">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        iOS قريباً
+      </span>
+    </div>
+  </div>
+</div>
+
+<div id="header-placeholder"></div>
+
+<!-- BANNER -->
+<div style="max-width:1400px;margin:24px auto;padding:0 24px;" id="bannerWrap">
+  <!-- Rendered by JS -->
+</div>
+
+<!-- CATEGORIES -->
+<div class="ts-section" style="padding-top:8px;padding-bottom:8px;">
+  <div class="ts-section-title">
+    الأقسام
+    <a href="products.html">عرض الكل</a>
+  </div>
+  <div class="ts-cats" id="categoriesWrap"></div>
+</div>
+
+<!-- FEATURED PRODUCTS -->
+<div class="ts-section">
+  <div class="ts-section-title">
+    أحدث المنتجات
+    <a href="products.html">عرض المزيد</a>
+  </div>
+  <div class="ts-grid" id="productsGrid"></div>
+</div>
+
+<!-- PROMO SECTION -->
+<div style="max-width:1400px;margin:0 auto;padding:0 24px 32px;">
+  <div style="background:linear-gradient(135deg,#0A1628,#0F2044);border:1px solid var(--border);border-radius:16px;padding:32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+    <div>
+      <div style="font-size:28px;font-weight:900;margin-bottom:8px;">احصل على أفضل العروض!</div>
+      <div style="color:var(--text3);font-size:14px;">تسوق الآن واستمتع بتجربة لا مثيل لها مع ضمان الجودة</div>
+    </div>
+    <a href="products.html?discount=1" class="ts-btn ts-btn-primary" style="font-size:16px;padding:14px 32px;">🛍️ تسوق الآن</a>
+  </div>
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+const banners = [
+  { tag: 'عروض الصيف الكبرى', title: 'خصومات تصل حتى', sub: '50%', img: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400', link: 'products.html?discount=1', bg: 'rgba(37,99,235,0.3)' },
+  { tag: 'أحدث الهواتف', title: 'iPhone 15 Pro Max', sub: 'الآن متاح!', img: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400', link: 'product.html?id=1', bg: 'rgba(139,92,246,0.3)' },
+  { tag: 'عروض اللابتوبات', title: 'MacBook Air M2', sub: 'بسعر استثنائي', img: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400', link: 'products.html?cat=laptops', bg: 'rgba(6,182,212,0.3)' },
+];
+let currentBanner = 0;
+
+function renderBanner(idx) {
+  const b = banners[idx];
+  document.getElementById('bannerWrap').innerHTML = `
+  <div class="ts-banner" style="background:linear-gradient(135deg, #0A1628 0%, #0F2044 50%, #0A1628 100%);">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%, ${b.bg}, transparent 60%);border-radius:20px;"></div>
+    <div class="ts-banner-content">
+      <div class="ts-banner-tag">${b.tag}</div>
+      <div class="ts-banner-title">${b.title}</div>
+      <div class="ts-banner-sub">${b.sub}</div>
+      <a href="${b.link}" class="ts-btn ts-btn-primary" style="font-size:16px;padding:14px 32px;">تسوق الآن ←</a>
+      <div class="ts-banner-dots">
+        ${banners.map((_, i) => `<div class="ts-banner-dot ${i===idx?'active':''}" onclick="switchBanner(${i})"></div>`).join('')}
+      </div>
+    </div>
+    <div class="ts-banner-img">
+      <img src="${b.img}" alt="banner" onerror="this.style.display='none'">
+    </div>
+    <div class="ts-banner-arrows">
+      <div class="ts-banner-arrow" onclick="switchBanner(${(idx+1)%banners.length})">←</div>
+      <div class="ts-banner-arrow" onclick="switchBanner(${(idx-1+banners.length)%banners.length})">→</div>
+    </div>
+  </div>
+  `;
+}
+
+function switchBanner(idx) {
+  currentBanner = idx;
+  renderBanner(idx);
+}
+
+setInterval(() => { currentBanner = (currentBanner + 1) % banners.length; renderBanner(currentBanner); }, 5000);
+
+function renderCategories() {
+  const cats = DB.get('ts_categories') || [];
+  const catSVGs = {
+    phones: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>',
+    laptops: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="20" x2="22" y2="20"></line></svg>',
+    headphones: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>',
+    screens: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>',
+    tablets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>',
+    accessories: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><circle cx="12" cy="12" r="3"></circle><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"></path></svg>',
+    watches: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><circle cx="12" cy="12" r="7"></circle><polyline points="12 9 12 12 13.5 13.5"></polyline><path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83"></path></svg>',
+  };
+  document.getElementById('categoriesWrap').innerHTML = cats.map(c => `
+    <a href="products.html?cat=${c.id}" class="ts-cat-btn">
+      <span class="cat-icon cat-svg">${catSVGs[c.id] || c.icon}</span>
+      ${c.name}
+    </a>
+  `).join('') + `<a href="products.html" class="ts-cat-btn"><span class="cat-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+  </span>المزيد</a>`;
+}
+
+function renderProducts() {
+  const products = DB.getProducts().slice(0, 8);
+  document.getElementById('productsGrid').innerHTML = products.map(p => renderProductCard(p)).join('');
+}
+
+function renderProductCard(p) {
+  const wished = DB.isWishlisted(p.id);
+  const discount = p.discount ? `<div class="ts-discount-badge">${p.discount}% خصم</div>` :
+    (p.stock <= 5 ? `<div class="ts-new-badge">جديد</div>` : `<div class="ts-new-badge">جديد</div>`);
+  const lowStock = p.stock <= 5 && p.stock > 0 ? `<div class="ts-stock-badge">متبقي ${p.stock}</div>` : '';
+
+  return `
+  <div class="ts-product-card">
+    <div class="ts-product-img">
+      <a href="product.html?id=${p.id}"><img src="${p.images[0]}" alt="${p.name}" onerror="this.src='https://placehold.co/300x220/0D1B30/60A5FA?text=📦'"></a>
+      ${discount}
+      ${lowStock}
+      <div class="ts-wish-btn ${wished?'active':''}" onclick="toggleWish(${p.id}, this)">
+        ${wished ? '❤️' : '🤍'}
+      </div>
+    </div>
+    <div class="ts-product-body">
+      <a href="product.html?id=${p.id}" style="text-decoration:none;color:inherit">
+        <div class="ts-product-name">${p.name}</div>
+      </a>
+      <div class="ts-product-rating">
+        <span class="ts-stars">${renderStars(p.rating)}</span>
+        <span class="ts-rating-count">(${p.reviews})</span>
+      </div>
+      <div class="ts-product-price">
+        <span class="ts-price">${formatPrice(p.price)}</span>
+        ${p.oldPrice ? `<span class="ts-old-price">${formatPrice(p.oldPrice)}</span>` : ''}
+      </div>
+      <button class="ts-btn ts-btn-primary ts-btn-full ts-btn-sm" onclick="quickAdd(${p.id})">
+        🛒 أضف للسلة
+      </button>
+    </div>
+  </div>
+  `;
+}
+
+function toggleWish(id, el) {
+  const added = DB.toggleWishlist(id);
+  el.innerHTML = added ? '❤️' : '🤍';
+  el.classList.toggle('active', added);
+  // Update badge
+  const wishCount = DB.getWishlist().length;
+  document.querySelectorAll('.wish-count').forEach(b => { b.textContent = wishCount; b.style.display = wishCount > 0 ? 'flex' : 'none'; });
+  showToast(added ? 'تمت الإضافة للمفضلة ❤️' : 'تمت الإزالة من المفضلة');
+}
+
+function quickAdd(id) {
+  DB.addToCart(id);
+  showToast('تمت الإضافة للسلة 🛒');
+  openCart();
+}
+
+window.toggleWish = toggleWish;
+window.quickAdd = quickAdd;
+window.switchBanner = switchBanner;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await initPage();
+  renderBanner(0);
+  renderCategories();
+  renderProducts();
+});
+</script>
+</body>
+</html>

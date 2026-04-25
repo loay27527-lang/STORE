@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إتمام الطلب - TECHSTORE</title>
+  <link rel="stylesheet" href="css/style.css">
+<style>
+@media(max-width:768px){
+  #checkoutGrid{grid-template-columns:1fr !important;}
+  #checkoutSummary{order:-1;}
+}
+</style>
+</head>
+<body>
+
+<!-- App Download Bar -->
+<div style="background:linear-gradient(90deg,#1a1a2e,#16213e,#0f3460);padding:10px 20px;text-align:center;border-bottom:1px solid var(--border2);position:relative;z-index:200;">
+  <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
+    <span style="color:var(--text2);font-size:13px;">📲 حمل تطبيق TECHSTORE واستمتع بتجربة تسوق أسرع!</span>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="https://github.com/loay27527-lang/STORE/releases/download/V1.0/_TECH_STORE_19756376.apk" download style="display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.42c1.42.07 2.41.74 3.24.8 1.24-.24 2.43-.93 3.75-.84 1.58.12 2.78.75 3.55 1.9-3.25 1.95-2.48 5.98.66 7.18-.56 1.3-1.13 2.58-3.2 3.82zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+        تحميل Android
+      </a>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);color:var(--text3);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,0.15);">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        iOS قريباً
+      </span>
+    </div>
+  </div>
+</div>
+
+<div id="header-placeholder"></div>
+
+<div class="ts-page" id="checkoutPage">
+  <!-- Rendered by JS -->
+</div>
+
+<div id="footer-placeholder"></div>
+
+<script src="js/db.js"></script>
+<script src="js/components.js"></script>
+<script>
+let step = 1;
+let couponDiscount = 0;
+let couponCode = '';
+let shippingData = {};
+let paymentMethod = 'cod';
+
+function getSubtotal() {
+  return DB.getCart().reduce((total, item) => {
+    const p = DB.getProduct(item.productId);
+    if (!p) return total;
+    let price = p.price;
+    if (item.storage) { const s = p.storage.find(s => s.size === item.storage); if(s) price += s.price; }
+    if (item.color) { const c = p.colors.find(c => c.name === item.color); if(c) price += c.price; }
+    return total + price * item.qty;
+  }, 0);
+}
+
+function getShipping(sub) { return sub >= 500 ? 0 : 60; }
+function getTotal() {
+  const sub = getSubtotal();
+  const ship = getShipping(sub);
+  return sub + ship - couponDiscount;
+}
+
+function renderSummary() {
+  const cart = DB.getCart();
+  const sub = getSubtotal();
+  const ship = getShipping(sub);
+  const total = getTotal();
+
+  return `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;position:sticky;top:80px;">
+    <h3 style="font-size:16px;font-weight:800;margin-bottom:16px;">ملخص الطلب</h3>
+    <div style="max-height:250px;overflow-y:auto;margin-bottom:16px;">
+      ${cart.map(item => {
+        const p = DB.getProduct(item.productId);
+        if (!p) return '';
+        let price = p.price;
+        if (item.storage) { const s = p.storage.find(s => s.size === item.storage); if(s) price += s.price; }
+        return `
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+          <img src="${p.images[0]}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;" onerror="this.src='https://placehold.co/50x50/0D1B30/60A5FA?text=📦'">
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;">${p.name}</div>
+            <div style="font-size:11px;color:var(--text3);">${item.color || ''} ${item.storage ? '| ' + item.storage : ''} × ${item.qty}</div>
+            <div style="font-size:13px;color:var(--blue3);font-weight:700;">${formatPrice(price * item.qty)}</div>
+          </div>
+        </div>
+        `;
+      }).join('')}
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
+        <span style="color:var(--text3);">المجموع الفرعي</span><span>${formatPrice(sub)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
+        <span style="color:var(--text3);">الشحن</span>
+        <span style="color:${ship===0?'var(--green)':'var(--text)'}">${ship === 0 ? 'مجاني' : formatPrice(ship)}</span>
+      </div>
+      ${couponDiscount > 0 ? `
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
+        <span style="color:var(--green);">خصم (${couponCode})</span>
+        <span style="color:var(--green);">- ${formatPrice(couponDiscount)}</span>
+      </div>
+      ` : ''}
+      <div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+        <span style="font-size:16px;font-weight:800;">الإجمالي</span>
+        <span style="font-size:20px;font-weight:900;color:var(--blue3);">${formatPrice(total)}</span>
+      </div>
+    </div>
+
+    <!-- Coupon -->
+    ${step === 1 ? `
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">كود الخصم</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" class="ts-input" id="couponInput" placeholder="أدخل كود الخصم" style="font-size:13px;padding:8px 12px;">
+        <button class="ts-btn ts-btn-primary ts-btn-sm" onclick="applyCoupon()">تطبيق</button>
+      </div>
+    </div>
+    ` : ''}
+
+    <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:8px;">
+      <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;">
+        🔒 تسوق بثقة وأمان
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function applyCoupon() {
+  const code = document.getElementById('couponInput').value.trim();
+  const coupon = DB.validateCoupon(code);
+  if (!coupon) { showToast('كود الخصم غير صحيح أو منتهي', 'error'); return; }
+  const sub = getSubtotal();
+  couponDiscount = coupon.type === 'percent' ? Math.round(sub * coupon.discount / 100) : coupon.discount;
+  couponCode = code;
+  showToast(`تم تطبيق الخصم! وفرت ${formatPrice(couponDiscount)} 🎉`);
+  render();
+}
+
+function render() {
+  const cart = DB.getCart();
+  if (cart.length === 0) { location.href = 'index.html'; return; }
+
+  const steps = ['السلة', 'بيانات التوصيل', 'الدفع', 'تأكيد الطلب'];
+  const stepsHtml = `
+  <div class="ts-steps" style="margin-bottom:32px;">
+    ${steps.map((s, i) => `
+      <div class="ts-step ${step === i+1 ? 'active' : step > i+1 ? 'done' : ''}">
+        <div class="ts-step-num">${step > i+1 ? '✓' : i+1}</div>
+        <div class="ts-step-label">${s}</div>
+      </div>
+    `).join('')}
+  </div>
+  `;
+
+  let content = '';
+  if (step === 1) {
+    content = `
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:20px;">🛒 مراجعة السلة</h2>
+    ${cart.map(item => {
+      const p = DB.getProduct(item.productId);
+      if (!p) return '';
+      let price = p.price;
+      if (item.storage) { const s = p.storage.find(s => s.size === item.storage); if(s) price += s.price; }
+      if (item.color) { const c = p.colors.find(c => c.name === item.color); if(c) price += c.price; }
+      return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+        <img src="${p.images[0]}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;" onerror="this.src='https://placehold.co/70x70/0D1B30/60A5FA?text=📦'">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;">${p.name}</div>
+          ${item.color ? `<div style="font-size:12px;color:var(--text3);">${item.color}${item.storage ? ' | ' + item.storage : ''}</div>` : ''}
+          <div style="color:var(--blue3);font-weight:800;">${formatPrice(price)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <button style="width:28px;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:16px;" onclick="changeQtyCheckout('${item.key}', ${item.qty-1})">−</button>
+            <span style="font-weight:700;min-width:20px;text-align:center;">${item.qty}</span>
+            <button style="width:28px;height:28px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:16px;" onclick="changeQtyCheckout('${item.key}', ${item.qty+1})">+</button>
+          </div>
+        </div>
+        <div style="text-align:left;">
+          <div style="font-weight:800;color:var(--blue3);margin-bottom:8px;">${formatPrice(price * item.qty)}</div>
+          <span style="color:var(--red);cursor:pointer;font-size:18px;" onclick="changeQtyCheckout('${item.key}', 0)">🗑️</span>
+        </div>
+      </div>
+      `;
+    }).join('')}
+    <button class="ts-btn ts-btn-primary" style="width:100%;margin-top:16px;font-size:16px;" onclick="nextStep()">متابعة لبيانات التوصيل ←</button>
+    `;
+  } else if (step === 2) {
+    content = `
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:20px;">📍 بيانات التوصيل</h2>
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+      <div class="ts-form-group">
+        <label>الاسم بالكامل *</label>
+        <input type="text" class="ts-input" id="fullName" value="${shippingData.fullName||''}" placeholder="أدخل اسمك بالكامل">
+      </div>
+      <div class="ts-form-group">
+        <label>العنوان *</label>
+        <input type="text" class="ts-input" id="address" value="${shippingData.address||''}" placeholder="اكتب عنوان الشارع والمكان بالتفصيل">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="ts-form-group">
+          <label>العمارة / المبنى</label>
+          <input type="text" class="ts-input" id="building" value="${shippingData.building||''}" placeholder="اسم أو رقم العمارة">
+        </div>
+        <div class="ts-form-group">
+          <label>رقم المنزل *</label>
+          <input type="text" class="ts-input" id="house" value="${shippingData.house||''}" placeholder="رقم المنزل">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="ts-form-group">
+          <label>الدور</label>
+          <input type="text" class="ts-input" id="floor" value="${shippingData.floor||''}" placeholder="مثال: 3">
+        </div>
+        <div class="ts-form-group">
+          <label>رقم الشقة</label>
+          <input type="text" class="ts-input" id="apt" value="${shippingData.apt||''}" placeholder="رقم الشقة أو الوحدة">
+        </div>
+      </div>
+      <div class="ts-form-group">
+        <label>الحي / المنطقة *</label>
+        <input type="text" class="ts-input" id="area" value="${shippingData.area||''}" placeholder="أدخل اسم الحي أو المنطقة">
+      </div>
+      <div class="ts-form-group">
+        <label>المحافظة *</label>
+        <select class="ts-input" id="city">
+          ${['القاهرة','الجيزة','الإسكندرية','الأقصر','أسوان','المنصورة','طنطا','الزقازيق','المنيا','أسيوط','سوهاج','قنا','الفيوم','بني سويف','دمياط','الإسماعيلية','بورسعيد','السويس','مطروح','شرم الشيخ'].map(c => `<option ${shippingData.city===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ts-form-group">
+        <label>رقم الهاتف *</label>
+        <input type="tel" class="ts-input" id="phone" value="${shippingData.phone||''}" placeholder="أدخل رقم هاتفك للتواصل">
+      </div>
+      <div class="ts-form-group">
+        <label>علامة مميزة (اختياري)</label>
+        <input type="text" class="ts-input" id="landmark" value="${shippingData.landmark||''}" placeholder="مثال: بجانب مسجد النور">
+      </div>
+      <div class="ts-form-group">
+        <label>ملاحظات إضافية</label>
+        <textarea class="ts-input" id="notes" placeholder="أي معلومات إضافية توضح مكان التوصيل...">${shippingData.notes||''}</textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="ts-btn ts-btn-outline" onclick="prevStep()">→ رجوع</button>
+      <button class="ts-btn ts-btn-primary" style="flex:1;" onclick="saveShipping()">متابعة إلى الدفع ←</button>
+    </div>
+    `;
+  } else if (step === 3) {
+    content = `
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:20px;">💳 طريقة الدفع</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+      ${[
+        { id:'cod', icon:'💵', title:'الدفع عند الاستلام', desc:'ادفع نقداً عند استلام طلبك' },
+        { id:'card', icon:'💳', title:'بطاقة ائتمانية/مدينة', desc:'Visa / MasterCard / Meeza' },
+        { id:'instapay', icon:'📱', title:'InstaPay / محافظ رقمية', desc:'Vodafone Cash / Orange Cash' },
+      ].map(pm => `
+      <div style="background:var(--card);border:2px solid ${paymentMethod===pm.id?'var(--blue2)':'var(--border)'};border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;" onclick="selectPayment('${pm.id}')">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:28px;">${pm.icon}</span>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;">${pm.title}</div>
+            <div style="font-size:12px;color:var(--text3);">${pm.desc}</div>
+          </div>
+          <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${paymentMethod===pm.id?'var(--blue2)':'var(--border)'};display:flex;align-items:center;justify-content:center;">
+            ${paymentMethod===pm.id?'<div style="width:10px;height:10px;border-radius:50%;background:var(--blue2);"></div>':''}
+          </div>
+        </div>
+      </div>
+      `).join('')}
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="ts-btn ts-btn-outline" onclick="prevStep()">→ رجوع</button>
+      <button class="ts-btn ts-btn-primary" style="flex:1;" onclick="confirmOrder()">تأكيد الطلب ✓</button>
+    </div>
+    `;
+  }
+
+  document.getElementById('checkoutPage').innerHTML = `
+  <div id="checkoutGrid" style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start;">
+    <div>
+      ${stepsHtml}
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;">${content}</div>
+    </div>
+    <div>${renderSummary()}</div>
+  </div>
+  `;
+}
+
+function changeQtyCheckout(key, qty) {
+  DB.updateCartQty(key, qty);
+  render();
+}
+
+function nextStep() { step++; render(); window.scrollTo(0, 0); }
+function prevStep() { step--; render(); window.scrollTo(0, 0); }
+
+function selectPayment(id) { paymentMethod = id; render(); }
+
+function saveShipping() {
+  const get = id => document.getElementById(id)?.value?.trim() || '';
+  const data = {
+    fullName: get('fullName'), address: get('address'),
+    building: get('building'), house: get('house'),
+    floor: get('floor'), apt: get('apt'),
+    area: get('area'), city: get('city'),
+    phone: get('phone'), landmark: get('landmark'),
+    notes: get('notes'),
+  };
+  if (!data.fullName || !data.address || !data.area || !data.phone) {
+    showToast('يرجى ملء الحقول المطلوبة *', 'error'); return;
+  }
+  shippingData = data;
+  nextStep();
+}
+
+async function confirmOrder() {
+  const user = DB.getUser();
+  const cart = DB.getCart();
+  const items = cart.map(item => {
+    const p = DB.getProduct(item.productId);
+    let price = p.price;
+    if (item.storage) { const s = p.storage.find(s => s.size === item.storage); if(s) price += s.price; }
+    if (item.color) { const c = p.colors.find(c => c.name === item.color); if(c) price += c.price; }
+    return { ...item, name: p.name, img: p.images[0], price };
+  });
+
+  const order = await DB.createOrder({
+    userId: user?.id || null,
+    userName: user?.name || shippingData.fullName,
+    items,
+    shipping: shippingData,
+    paymentMethod,
+    subtotal: getSubtotal(),
+    shippingCost: getShipping(getSubtotal()),
+    discount: couponDiscount,
+    coupon: couponCode,
+    total: getTotal(),
+  });
+
+  DB.clearCart();
+  localStorage.setItem('ts_lastOrder', order.id);
+
+  // Save notification for admin panel
+  try {
+    const notifs = JSON.parse(localStorage.getItem('ts_admin_notifs') || '[]');
+    notifs.unshift({
+      id: order.id,
+      time: Date.now(),
+      type: 'new_order',
+      title: 'طلب جديد! 🛍️',
+      customerName: order.shipping?.fullName || order.userName || 'عميل',
+      phone: order.shipping?.phone || '',
+      address: [(order.shipping?.address||''), (order.shipping?.area||''), (order.shipping?.city||'')].filter(x=>x).join(' - '),
+      items: order.items,
+      total: order.total,
+      paymentMethod: order.paymentMethod,
+      read: false
+    });
+    // Keep only last 50
+    localStorage.setItem('ts_admin_notifs', JSON.stringify(notifs.slice(0, 50)));
+  } catch(e) {}
+  
+  // Send WhatsApp notification to owner
+  try {
+    const itemsList = order.items.map(i => `• ${i.name} (${i.qty} قطعة) - ${formatPrice(i.price * i.qty)}`).join('%0A');
+    const payMethod = order.paymentMethod === 'cod' ? 'عند الاستلام' : order.paymentMethod === 'card' ? 'بطاقة' : 'محفظة رقمية';
+    const msg = `🛍️ *طلب جديد من TECHSTORE*%0A%0A`
+      + `📋 *رقم الطلب:* %23${String(order.id).slice(-6)}%0A`
+      + `👤 *اسم العميل:* ${encodeURIComponent(order.shipping?.fullName || order.userName || 'غير معروف')}%0A`
+      + `📞 *رقم الهاتف:* ${order.shipping?.phone || '-'}%0A`
+      + `📍 *العنوان:* ${encodeURIComponent((order.shipping?.address || '') + ' - ' + (order.shipping?.area || '') + ' - ' + (order.shipping?.city || ''))}%0A`
+      + `%0A📦 *المنتجات:*%0A${itemsList}%0A`
+      + `%0A💰 *الإجمالي:* ${formatPrice(order.total)}%0A`
+      + `💳 *طريقة الدفع:* ${payMethod}%0A`
+      + `%0A✅ يرجى تأكيد الطلب وترتيب الشحن.`;
+    window.open(`https://wa.me/201121189810?text=${msg}`, '_blank');
+  } catch(e) {}
+  
+  location.href = 'order-success.html';
+}
+
+window.applyCoupon = applyCoupon;
+window.changeQtyCheckout = changeQtyCheckout;
+window.nextStep = nextStep; window.prevStep = prevStep;
+window.selectPayment = selectPayment; window.saveShipping = saveShipping;
+window.confirmOrder = confirmOrder;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await initPage();
+  render();
+});
+</script>
+</body>
+</html>
